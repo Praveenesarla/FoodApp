@@ -1,6 +1,8 @@
 import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import { signOut } from "firebase/auth";
 import { createContext, useContext, useEffect, useState } from "react";
+import { auth } from "../firebaseConfig";
 
 const AuthContext = createContext(null);
 
@@ -29,9 +31,14 @@ export const AuthContextProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    await SecureStore.deleteItemAsync("isAuthenticated");
-    setUser(null);
-    router.replace("/(auth)/login");
+    try {
+      await signOut(auth);
+      await SecureStore.deleteItemAsync("isAuthenticated");
+      setUser(null);
+      router.replace("/(auth)/login");
+    } catch (error) {
+      console.error("Error logging out:", error);
+    }
   };
 
   if (loading) return null;

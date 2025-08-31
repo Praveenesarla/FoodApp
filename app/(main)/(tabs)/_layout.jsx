@@ -2,9 +2,34 @@ import Feather from "@expo/vector-icons/Feather";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import { Tabs } from "expo-router";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { colors } from "../../../constants";
+import { fetchCartItemsFromFirebase } from "../../../firebaseConfig";
+import { setCartItems } from "../../../store/cartSlice";
 
 const TabLayout = () => {
+  const cartItems = useSelector((state) => state.cart.items);
+  const user = getAuth();
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(user, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          console.log("auth", firebaseUser.uid);
+          const data = await fetchCartItemsFromFirebase(firebaseUser.uid);
+          console.log("data", data);
+          dispatch(setCartItems(data));
+        } catch (error) {
+          console.error("Error fetching cart items:", error);
+        }
+      }
+    });
+
+    return unsubscribe; // cleanup
+  }, []);
   return (
     <Tabs
       screenOptions={{
@@ -54,6 +79,12 @@ const TabLayout = () => {
       <Tabs.Screen
         name="cart"
         options={{
+          tabBarBadge: cartItems.length,
+          tabBarBadgeStyle: {
+            backgroundColor: colors.primary,
+            color: colors.white,
+            fontFamily: "Bold",
+          },
           title: "Cart",
           tabBarIcon: ({ color }) => (
             <Feather name="shopping-bag" size={28} color={color} />

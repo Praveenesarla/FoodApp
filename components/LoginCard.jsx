@@ -1,3 +1,4 @@
+import LottieView from "lottie-react-native";
 import { useState } from "react";
 import {
   StyleSheet,
@@ -8,10 +9,10 @@ import {
 } from "react-native";
 import { colors } from "../constants";
 
-const LoginCard = ({ switchScreen, finalCall }) => {
+const LoginCard = ({ switchScreen, finalCall, loaderData }) => {
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
-
+  const { loading, setLoader } = loaderData;
   const validateEmail = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
     return regex.test(email);
@@ -28,6 +29,7 @@ const LoginCard = ({ switchScreen, finalCall }) => {
     } else if (!isPasswordValid) {
       alert("Password must be at least 6 characters");
     } else {
+      setLoader(false);
       finalCall({ email, password });
     }
   };
@@ -52,7 +54,18 @@ const LoginCard = ({ switchScreen, finalCall }) => {
         />
       </View>
       <TouchableOpacity style={styles.buttonContainer} onPress={loginSubmit}>
-        <Text style={styles.buttonText}>Login</Text>
+        {loading ? (
+          <LottieView
+            autoPlay
+            style={{
+              width: 300,
+              height: 300,
+            }}
+            source={require("../assets/LoadingDotsBlue.json")}
+          />
+        ) : (
+          <Text style={styles.buttonText}>Login</Text>
+        )}
       </TouchableOpacity>
       <Text style={styles.alreadyText} onPress={switchScreen}>
         Already have an account? <Text style={styles.span}>Sign up</Text>{" "}

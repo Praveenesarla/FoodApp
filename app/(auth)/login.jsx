@@ -1,4 +1,11 @@
 import {
+  Actionsheet,
+  ActionsheetBackdrop,
+  ActionsheetContent,
+  ActionsheetDragIndicator,
+  ActionsheetDragIndicatorWrapper,
+} from "@/components/ui/actionsheet";
+import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   updateProfile,
@@ -9,6 +16,7 @@ import {
   Dimensions,
   Image,
   ImageBackground,
+  KeyboardAvoidingView,
   Pressable,
   StyleSheet,
   Text,
@@ -27,7 +35,16 @@ const { height } = Dimensions.get("screen");
 const Login = () => {
   const { login, user } = useAuth();
   const [authScreen, setAuthScreen] = useState(false);
+  const [loader, setLoader] = useState(false);
   const [visible, setVisible] = useState(true);
+  const [showActionsheet, setShowActionsheet] = useState(false);
+  const handleClose = () => setShowActionsheet(false);
+  const handleOpen = () => setShowActionsheet(true);
+  const [authData, setAuthData] = useState();
+
+  const furtherSteps = () => {
+    login(authData);
+  };
 
   const signIn = async (data) => {
     if (data) {
@@ -42,7 +59,8 @@ const Login = () => {
         data.password
       );
       if (userCredential.user) {
-        login(userCredential.user.uid);
+        setAuthData(userCredential.user.uid);
+        handleOpen();
       }
     } catch (error) {
       console.log(error);
@@ -51,6 +69,7 @@ const Login = () => {
   };
 
   const signUp = async (data) => {
+    setLoader(true);
     if (data) {
       console.log("data2", data);
     } else {
@@ -77,8 +96,10 @@ const Login = () => {
         cartItems: [],
       });
 
-      console.log("User base profile created in Firestore");
-      login(user.uid);
+      setAuthData(user.uid);
+      handleOpen();
+
+      // login(user.uid);
     } catch (error) {
       console.log(error);
       alert("Sign In Failed", error.message);
@@ -102,7 +123,7 @@ const Login = () => {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: "#fff" }}>
       <View style={styles.container}>
         <ImageBackground
           source={require("../../assets/images/authIcon.png")}
@@ -192,9 +213,17 @@ const Login = () => {
           </TouchableOpacity>
         </View>
         {authScreen ? (
-          <LoginCard switchScreen={switchLoginScreen} finalCall={signIn} />
+          <LoginCard
+            switchScreen={switchLoginScreen}
+            finalCall={signIn}
+            loaderData={{ loading: loader, setLoader: setLoader }}
+          />
         ) : (
-          <SignUpCard switchScreen={switchSignUpScreen} finalCall={signUp} />
+          <SignUpCard
+            switchScreen={switchSignUpScreen}
+            finalCall={signUp}
+            loaderData={{ loading: loader, setLoader: setLoader }}
+          />
         )}
       </View>
       <Modal
@@ -217,7 +246,57 @@ const Login = () => {
           </TouchableOpacity>
         </View>
       </Modal>
-    </View>
+
+      <Actionsheet isOpen={showActionsheet} onClose={handleClose}>
+        <ActionsheetBackdrop />
+        <ActionsheetContent>
+          <ActionsheetDragIndicatorWrapper>
+            <ActionsheetDragIndicator />
+          </ActionsheetDragIndicatorWrapper>
+          <View
+            style={{
+              alignItems: "center",
+              justifyContent: "space-around",
+
+              gap: 10,
+              marginBottom: 50,
+            }}
+          >
+            <Image
+              resizeMode="contain"
+              style={{ width: 200, height: 200 }}
+              source={require("../../assets/images/IllustrationSuccess.png")}
+            />
+            <Text
+              style={{ fontFamily: "Bold", color: colors.black, fontSize: 24 }}
+            >
+              Login Successful
+            </Text>
+            <TouchableOpacity
+              onPress={() => login(authData)}
+              style={{
+                width: 380,
+                height: 48,
+                borderRadius: 150,
+                backgroundColor: colors.primary,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: "Bold",
+                  color: colors.white,
+                  fontSize: 18,
+                }}
+              >
+                Go to Homepage
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ActionsheetContent>
+      </Actionsheet>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -250,7 +329,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    marginTop: -30,
+    marginTop: -55,
     elevation: 5,
     padding: 15,
   },

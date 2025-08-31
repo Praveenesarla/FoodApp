@@ -6,6 +6,7 @@ import {
   ActionsheetDragIndicatorWrapper,
 } from "@/components/ui/actionsheet";
 import {
+  AntDesign,
   Entypo,
   EvilIcons,
   Feather,
@@ -14,12 +15,14 @@ import {
   MaterialIcons,
 } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import { router } from "expo-router";
 import {
   getAuth,
   PhoneAuthProvider,
   RecaptchaVerifier,
   reload,
   signInWithPhoneNumber,
+  signOut,
   updateEmail,
   updatePhoneNumber,
   updateProfile,
@@ -39,11 +42,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, images } from "../../../constants";
-import { db } from "../../../firebaseConfig";
+import { useAuth } from "../../../context/AuthContext";
+import { db, auth as firebaseAuth } from "../../../firebaseConfig";
 
 const Profile = () => {
   const [showModal, setShowModal] = useState(false);
   const [options, setOptions] = useState("3");
+  const { logout } = useAuth();
   const [showActionsheet, setShowActionsheet] = useState(false);
   const [userData, setUserData] = useState({});
   const handleClose = () => setShowActionsheet(false);
@@ -58,13 +63,13 @@ const Profile = () => {
     {
       id: "2",
       label: "Email",
-      icon: "mail",
+      icon: "email",
       value: "",
     },
     {
       id: "3",
       label: "Phone number",
-      icon: "phone",
+      icon: "old-phone",
       value: "",
     },
     {
@@ -120,6 +125,13 @@ const Profile = () => {
   const user = auth.currentUser;
 
   console.log("uid", user.uid);
+
+  const signingOut = async () => {
+    try {
+      await signOut(firebaseAuth);
+      await logout;
+    } catch (error) {}
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -452,7 +464,12 @@ const Profile = () => {
       <View style={styles.headerContanier}>
         <Ionicons name="arrow-back" size={30} color="black" />
         <Text style={styles.profileTitle}>Profile</Text>
-        <Feather name="search" size={30} color="black" />
+        <Feather
+          name="search"
+          size={30}
+          color="black"
+          onPress={() => router.push("/search")}
+        />
       </View>
       <Pressable
         style={{ alignItems: "center" }}
@@ -507,6 +524,53 @@ const Profile = () => {
             marginHorizontal: 8,
             paddingBottom: 40,
           }}
+          ListFooterComponent={
+            <TouchableOpacity
+              onPress={() => router.push("../orders")}
+              style={{
+                flexDirection: "row",
+                flex: 1,
+                paddingHorizontal: 14,
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <View
+                  style={{
+                    width: 58,
+                    height: 58,
+                    backgroundColor: colors.primaryBackground,
+                    borderRadius: 34,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <AntDesign
+                    name="shoppingcart"
+                    size={26}
+                    color={colors.primary}
+                  />
+                </View>
+                <Text
+                  style={{
+                    fontSize: 15,
+                    color: colors.black,
+                    fontFamily: "Bold",
+                  }}
+                >
+                  Orders
+                </Text>
+              </View>
+              <AntDesign name="right" size={24} color={colors.primary} />
+            </TouchableOpacity>
+          }
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => {
             return (
@@ -594,7 +658,8 @@ const Profile = () => {
           }}
         />
       </View>
-      <View
+      <Pressable
+        onPress={logout}
         style={{
           width: "auto",
           height: 48,
@@ -611,7 +676,7 @@ const Profile = () => {
         <Text style={[styles.editProfile, { color: colors.error }]}>
           Log Out
         </Text>
-      </View>
+      </Pressable>
       <Actionsheet isOpen={showActionsheet} onClose={handleClose}>
         <ActionsheetBackdrop />
         <ActionsheetContent>

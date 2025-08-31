@@ -1,28 +1,63 @@
 import { AntDesign, Feather, FontAwesome, Ionicons } from "@expo/vector-icons";
+import { Tooltip } from "@rneui/themed";
 import { router, useLocalSearchParams } from "expo-router";
 import { collection, getDocs } from "firebase/firestore";
+import LottieView from "lottie-react-native";
+import { Skeleton } from "moti/skeleton";
 import { useEffect, useState } from "react";
 import {
   FlatList,
   Image,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useDispatch, useSelector } from "react-redux";
 import { colors, images } from "../../constants";
 import StarRating from "../../constants/stars";
 import { db } from "../../firebaseConfig";
+import {
+  addAddOns,
+  addToCart,
+  removeAddOns,
+  removeFromCart,
+  updateCart,
+} from "../../store/cartSlice";
 
 const ProductDetails = () => {
   const { item } = useLocalSearchParams();
   const [toppingsList, setToppingsList] = useState([]);
   const [optionsList, setOptionsList] = useState([]);
+  const cartItems = useSelector((state) => state.cart.items);
+  const [selectedQuantity, setSelectedQuantity] = useState(0);
+  const [selectedTooltipId, setSelectedTooltipId] = useState(null);
+  const dispatch = useDispatch();
+  const [selectedAnimation, setSelectedAnimation] = useState(false);
+  const [selectedAddOns, setSelectedAddOns] = useState([]);
 
-  console.log("toppingsList", toppingsList);
+  console.log("cartITems", cartItems);
 
-  console.log("optionsList", optionsList);
+  const existedItem = () => {
+    const foodItem = cartItems.find((item) => item?.id === parsedItem?.id);
+    return <Text>Remove From Cart (${foodItem?.total})</Text>;
+  };
+
+  const notExistedItem = () => {
+    const foodItemPrice = parsedItem?.price;
+    const foodQuantity = selectedQuantity;
+    const foodQuantityTotal = foodItemPrice * foodQuantity;
+    const addOnsCheck = selectedAddOns?.reduce(
+      (acc, curr) => acc + Number(curr?.price),
+      0
+    );
+    console.log("add", addOnsCheck);
+    const totalFoodItem = foodQuantityTotal + addOnsCheck;
+    return <Text>Add to Cart (${totalFoodItem})</Text>;
+  };
 
   useEffect(() => {
     getToppings();
@@ -37,6 +72,82 @@ const ProductDetails = () => {
     console.error("❌ JSON parsing error:", e);
     return <Text>Error loading item details</Text>;
   }
+
+  const getItemQuantity = (id) => {
+    const item = cartItems.find((item) => item?.id === id);
+
+    return item ? item.quantity : 0;
+  };
+
+  const getMinusOrPlusExisted = (addItem) => {
+    const checkItem = cartItems.find((k) => k?.id === parsedItem?.id);
+
+    if (checkItem && Array.isArray(checkItem.addOns)) {
+      const checkAddon = checkItem.addOns.find((i) => i?.id === addItem?.id);
+
+      if (checkAddon) {
+        return (
+          <AntDesign
+            name="minuscircle"
+            size={14}
+            color={colors.error}
+            onPress={() =>
+              dispatch(
+                removeAddOns({ productId: parsedItem?.id, itemId: addItem.id })
+              )
+            }
+          />
+        );
+      } else {
+        return (
+          <AntDesign
+            name="pluscircle"
+            size={14}
+            color={colors.error}
+            onPress={() =>
+              dispatch(addAddOns({ productId: parsedItem?.id, item: addItem }))
+            }
+          />
+        );
+      }
+    }
+
+    return null;
+  };
+
+  const getMinusOrPlusNotExisted = (addItem) => {
+    const checkItem = selectedAddOns.find((item) => item?.id === addItem?.id);
+    if (checkItem) {
+      return (
+        <AntDesign
+          name="minuscircle"
+          size={14}
+          color={colors.error}
+          onPress={() => {
+            setSelectedAddOns((prev) =>
+              prev.filter((i) => i.id !== addItem.id)
+            );
+          }}
+        />
+      );
+    } else {
+      return (
+        <AntDesign
+          name="pluscircle"
+          size={14}
+          color={colors.error}
+          onPress={() => setSelectedAddOns([...selectedAddOns, addItem])}
+        />
+      );
+    }
+  };
+
+  const getExistingItemQuant = () => {
+    const findingItem = cartItems.find((i) => i?.id === parsedItem.id);
+    if (findingItem) {
+      return findingItem.quantity;
+    }
+  };
 
   const getToppings = async () => {
     try {
@@ -117,7 +228,7 @@ const ProductDetails = () => {
           <View>
             <View style={{ marginBottom: 8 }}>
               <Text style={styles.productTitle}>{parsedItem?.name}</Text>
-              <Text style={styles.productCategory}>{parsedItem?.category}</Text>
+              <Text style={styles.productCategory}>{parsedItem?.cat}</Text>
             </View>
 
             <View
@@ -156,16 +267,38 @@ const ProductDetails = () => {
               </View>
             </View>
             <View style={{ marginBottom: 8 }}>
-              <Text style={styles.medLabel}>Bun Type</Text>
+              <Text style={styles.medLabel}>
+                {(parsedItem?.BunType && "Bun Type") ||
+                  (parsedItem?.BaseType && "Base Type") ||
+                  (parsedItem?.WrapType && "Wrap Type")}
+              </Text>
               <Text style={styles.medValue}>
-                {parsedItem?.BunType || parsedItem?.WrapType}
+                {parsedItem?.BunType ||
+                  parsedItem?.WrapType ||
+                  parsedItem?.BaseType}
               </Text>
             </View>
           </View>
-          <Image
-            source={{ uri: parsedItem?.imgUrl }}
-            style={{ width: 200, height: 205 }}
-          />
+          {selectedAnimation ? (
+            <LottieView
+              loop={false}
+              onAnimationFinish={() => setSelectedAnimation(false)}
+              autoPlay
+              resizeMode="contain"
+              style={{
+                width: 230,
+                height: 250,
+              }}
+              source={{ uri: parsedItem.animation }}
+            />
+          ) : (
+            <Pressable onPress={() => setSelectedAnimation(true)}>
+              <Image
+                source={{ uri: parsedItem?.imgUrl }}
+                style={{ width: 200, height: 205 }}
+              />
+            </Pressable>
+          )}
         </View>
         <View
           style={{
@@ -196,52 +329,90 @@ const ProductDetails = () => {
         {/* toppings */}
         <View style={{ marginTop: 5 }}>
           <Text style={styles.headerTitle}>Toppings</Text>
+
           <FlatList
             showsHorizontalScrollIndicator={false}
             horizontal
             contentContainerStyle={{ marginVertical: 15, gap: 30 }}
-            data={toppingsList}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <View
-                style={{
-                  width: 84,
-                  height: 99,
-                  borderRadius: 15,
-                  backgroundColor: colors.addOns,
-                  flex: 1,
-                  overflow: "hidden",
-                }}
-              >
+            data={toppingsList.length > 0 ? toppingsList : [1, 2, 3, 4, 5, 6]}
+            keyExtractor={(item, index) =>
+              typeof item === "object" ? item.id : index.toString()
+            }
+            renderItem={({ item }) =>
+              toppingsList.length > 0 ? (
                 <View
                   style={{
-                    width: "auto",
-                    height: 61,
-                    backgroundColor: colors.white,
-                    borderBottomEndRadius: 15,
-                    borderBottomStartRadius: 15,
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <Image
-                    source={{ uri: item.imgUrl }}
-                    style={{ width: 55, height: 55 }}
-                  />
-                </View>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-around",
-                    alignItems: "center",
+                    width: 84,
+                    height: 99,
+                    borderRadius: 15,
+                    backgroundColor: colors.addOns,
                     flex: 1,
+                    overflow: "hidden",
                   }}
                 >
-                  <Text style={styles.addonsTitle}>{item.name}</Text>
-                  <AntDesign name="pluscircle" size={14} color={colors.error} />
+                  {/* Wrap tooltip around only the image section */}
+                  <Tooltip
+                    containerStyle={{ width: 145, height: 130 }}
+                    visible={selectedTooltipId === item.id}
+                    onOpen={() => setSelectedTooltipId(item.id)}
+                    onClose={() => setSelectedTooltipId(null)}
+                    width={200}
+                    backgroundColor={colors.primary}
+                    popover={
+                      <>
+                        <Text style={{ fontFamily: "Regular" }}>
+                          {item.des}
+                        </Text>
+                        <Text
+                          style={{ fontFamily: "Bold", color: colors.white }}
+                        >
+                          Price : ${item.price}
+                        </Text>
+                      </>
+                    }
+                  >
+                    <View
+                      style={{
+                        width: "auto",
+                        height: 61,
+                        backgroundColor: colors.white,
+                        borderBottomEndRadius: 15,
+                        borderBottomStartRadius: 15,
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Image
+                        resizeMode="contain"
+                        source={{ uri: item.imgUrl }}
+                        style={{ width: 55, height: 55 }}
+                      />
+                    </View>
+                  </Tooltip>
+
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-around",
+                      alignItems: "center",
+                      flex: 1,
+                    }}
+                  >
+                    <Text style={styles.addonsTitle}>{item.name}</Text>
+                    {getItemQuantity(parsedItem.id) > 0
+                      ? getMinusOrPlusExisted(item)
+                      : getMinusOrPlusNotExisted(item)}
+                  </View>
                 </View>
-              </View>
-            )}
+              ) : (
+                <Skeleton
+                  height={99}
+                  width={84}
+                  radius={15}
+                  colorMode="light"
+                />
+              )
+            }
           />
         </View>
         {/* Side Options */}
@@ -251,48 +422,85 @@ const ProductDetails = () => {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ marginVertical: 15, gap: 30 }}
-            data={optionsList}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <View
-                style={{
-                  width: 84,
-                  height: 99,
-                  borderRadius: 15,
-                  backgroundColor: colors.addOns,
-                  flex: 1,
-                  overflow: "hidden",
-                }}
-              >
+            data={optionsList.length > 0 ? optionsList : [1, 2, 3, 4, 5]}
+            keyExtractor={(item, index) =>
+              typeof item === "object" ? item.id : index.toString()
+            }
+            renderItem={({ item }) =>
+              optionsList.length > 0 ? (
                 <View
                   style={{
-                    width: "auto",
-                    height: 61,
-                    backgroundColor: colors.white,
-                    borderBottomEndRadius: 15,
-                    borderBottomStartRadius: 15,
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <Image
-                    source={{ uri: item.imgUrl }}
-                    style={{ width: 55, height: 55 }}
-                  />
-                </View>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-around",
-                    alignItems: "center",
+                    width: 84,
+                    height: 99,
+                    borderRadius: 15,
+                    backgroundColor: colors.addOns,
                     flex: 1,
+                    overflow: "hidden",
                   }}
                 >
-                  <Text style={styles.addonsTitle}>{item.name}</Text>
-                  <AntDesign name="pluscircle" size={14} color={colors.error} />
+                  {/* Wrap tooltip around only the image section */}
+                  <Tooltip
+                    containerStyle={{ width: 145, height: 130 }}
+                    visible={selectedTooltipId === item.id}
+                    onOpen={() => setSelectedTooltipId(item.id)}
+                    onClose={() => setSelectedTooltipId(null)}
+                    width={200}
+                    backgroundColor={colors.primary}
+                    popover={
+                      <>
+                        <Text style={{ fontFamily: "Regular" }}>
+                          {item.des}
+                        </Text>
+                        <Text
+                          style={{ fontFamily: "Bold", color: colors.white }}
+                        >
+                          Price : ${item.price}
+                        </Text>
+                      </>
+                    }
+                  >
+                    <View
+                      style={{
+                        width: "auto",
+                        height: 61,
+                        backgroundColor: colors.white,
+                        borderBottomEndRadius: 15,
+                        borderBottomStartRadius: 15,
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Image
+                        resizeMode="contain"
+                        source={{ uri: item.imgUrl }}
+                        style={{ width: 55, height: 55 }}
+                      />
+                    </View>
+                  </Tooltip>
+
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-around",
+                      alignItems: "center",
+                      flex: 1,
+                    }}
+                  >
+                    <Text style={styles.addonsTitle}>{item.name}</Text>
+                    {getItemQuantity(parsedItem.id) > 0
+                      ? getMinusOrPlusExisted(item)
+                      : getMinusOrPlusNotExisted(item)}
+                  </View>
                 </View>
-              </View>
-            )}
+              ) : (
+                <Skeleton
+                  height={99}
+                  width={84}
+                  radius={15}
+                  colorMode="light"
+                />
+              )
+            }
           />
         </View>
         <View
@@ -317,6 +525,16 @@ const ProductDetails = () => {
             }}
           >
             <Feather
+              onPress={() =>
+                getItemQuantity(parsedItem.id) > 0
+                  ? dispatch(
+                      updateCart({
+                        id: parsedItem.id,
+                        quantity: getItemQuantity(parsedItem.id) - 1,
+                      })
+                    )
+                  : setSelectedQuantity((prev) => (prev !== 0 ? prev - 1 : 0))
+              }
               name="minus-square"
               size={24}
               color={colors.primary}
@@ -325,9 +543,21 @@ const ProductDetails = () => {
             <Text
               style={{ fontSize: 20, fontFamily: "Bold", color: colors.black }}
             >
-              2
+              {getItemQuantity(parsedItem.id) > 0
+                ? getExistingItemQuant()
+                : selectedQuantity}
             </Text>
             <Feather
+              onPress={() =>
+                getItemQuantity(parsedItem.id) > 0
+                  ? dispatch(
+                      updateCart({
+                        id: parsedItem.id,
+                        quantity: getItemQuantity(parsedItem.id) + 1,
+                      })
+                    )
+                  : setSelectedQuantity((prev) => prev + 1)
+              }
               name="plus-square"
               size={24}
               color={colors.primary}
@@ -337,9 +567,16 @@ const ProductDetails = () => {
               }}
             />
           </View>
-          <View
+          <TouchableOpacity
+            onPress={() => {
+              getItemQuantity(parsedItem.id) === 0
+                ? dispatch(
+                    addToCart({ ...parsedItem, quantity: selectedQuantity })
+                  )
+                : dispatch(removeFromCart(parsedItem.id));
+            }}
             style={{
-              width: 190,
+              width: 210,
               height: 46,
               backgroundColor: colors.primary,
               borderRadius: 100,
@@ -350,8 +587,14 @@ const ProductDetails = () => {
             }}
           >
             <Feather name="shopping-bag" size={24} color={colors.white} />
-            <Text style={styles.bottomContent}>Add to cart ($26)</Text>
-          </View>
+            <Text style={styles.bottomContent}>
+              <Text style={styles.bottomContent}>
+                {getItemQuantity(parsedItem.id) > 0
+                  ? existedItem()
+                  : notExistedItem()}
+              </Text>
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>

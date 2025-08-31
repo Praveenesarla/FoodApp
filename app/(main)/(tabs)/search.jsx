@@ -1,11 +1,12 @@
 import { Entypo, Feather, Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { collection, getDocs } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Image,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -14,10 +15,13 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useDispatch, useSelector } from "react-redux";
 import { CATEGORIES, colors, images } from "../../../constants";
 import { db } from "../../../firebaseConfig";
+import { addToCart, updateCart } from "../../../store/cartSlice";
 
 const Search = () => {
+  const { item } = useLocalSearchParams();
   const [searchText, setSearchText] = useState("");
   const [foodItems, setFoodItems] = useState([]);
   const [load, setLoad] = useState(true);
@@ -25,8 +29,21 @@ const Search = () => {
   const [filteredItems, setFilteredItems] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const router = useRouter();
+  const cartItems = useSelector((state) => state.cart.items);
+  const dispatch = useDispatch();
 
-  console.log(selectedCategory);
+  const getItemQuantity = (id) => {
+    const item = cartItems.find((i) => i.id === id);
+    return item ? item.quantity : 0;
+  };
+
+  useEffect(() => {
+    if (item) {
+      setSelectedCategory(item);
+    }
+  }, [item]);
+
+  console.log("item", item);
 
   const filterCategory = () => {
     switch (selectedCategory) {
@@ -135,7 +152,8 @@ const Search = () => {
             <Entypo name="arrow-with-circle-down" size={18} color="black" />
           </View>
         </View>
-        <View
+        <Pressable
+          onPress={() => router.push("/cart")}
           style={{
             width: 48,
             height: 48,
@@ -146,7 +164,25 @@ const Search = () => {
           }}
         >
           <Feather name="shopping-bag" size={24} color={colors.white} />
-        </View>
+          <View
+            style={{
+              width: 25,
+              height: 25,
+              backgroundColor: colors.primary,
+              borderRadius: 12,
+              position: "absolute",
+              top: -4,
+              right: 0,
+              left: 27,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ fontFamily: "Bold", color: colors.white }}>
+              {cartItems.length}
+            </Text>
+          </View>
+        </Pressable>
       </View>
       <View
         style={{
@@ -253,10 +289,48 @@ const Search = () => {
                 <View style={styles.itemContent}>
                   <Text style={styles.itemTitle}>{item.name}</Text>
                   <Text style={styles.itemPrice}>From ${item.price}</Text>
-                  <View style={styles.addCartContainer}>
-                    <Entypo name="plus" size={24} color={colors.primary} />
-                    <Text style={styles.addToCartText}>Add to cart</Text>
-                  </View>
+
+                  {getItemQuantity(item.id) === 0 ? (
+                    <TouchableOpacity
+                      style={styles.addCartContainer}
+                      onPress={() => dispatch(addToCart(item))}
+                    >
+                      <Entypo name="plus" size={24} color={colors.primary} />
+                      <Text style={styles.addToCartText}>Add to cart</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={[styles.addCartContainer, { gap: 15 }]}>
+                      <Entypo
+                        onPress={() =>
+                          dispatch(
+                            updateCart({
+                              id: item.id,
+                              quantity: getItemQuantity(item.id) - 1,
+                            })
+                          )
+                        }
+                        name="squared-minus"
+                        size={26}
+                        color={colors.primary}
+                      />
+                      <Text style={{ fontFamily: "Bold", fontSize: 18 }}>
+                        {getItemQuantity(item.id)}
+                      </Text>
+                      <Entypo
+                        onPress={() =>
+                          dispatch(
+                            updateCart({
+                              id: item.id,
+                              quantity: getItemQuantity(item.id) + 1,
+                            })
+                          )
+                        }
+                        name="squared-plus"
+                        size={26}
+                        color={colors.primary}
+                      />
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
             )}

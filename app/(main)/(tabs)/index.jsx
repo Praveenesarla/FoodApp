@@ -12,8 +12,11 @@ import {
 } from "@expo/vector-icons";
 import Entypo from "@expo/vector-icons/Entypo";
 import Feather from "@expo/vector-icons/Feather";
-import { useState } from "react";
+import * as Sentry from "@sentry/react-native";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
+  Button,
   FlatList,
   Image,
   Pressable,
@@ -23,15 +26,42 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useDispatch, useSelector } from "react-redux";
 import { colors, offers } from "../../../constants";
 import { useAuth } from "../../../context/AuthContext";
 import { useLocation } from "../../../context/LocationContext";
+import { fetchCartItemsFromFirebase } from "../../../firebaseConfig";
+import { setCartItems } from "../../../store/cartSlice";
 const Index = () => {
   const { user, login, logout } = useAuth();
   const { location, home, work } = useLocation();
+
+  const dispatch = useDispatch();
+  const cartItems = useSelector((state) => state.cart.items);
+  const router = useRouter();
   const [showActionsheet, setShowActionsheet] = useState(false);
   const handleClose = () => setShowActionsheet(false);
   const handleOpen = () => setShowActionsheet(true);
+
+  useEffect(() => {
+    const fetchCart = async () => {
+      try {
+        if (user?.currentUser?.uid) {
+          console.log("auth", user.currentUser.uid);
+          const data = await fetchCartItemsFromFirebase(user.currentUser.uid);
+          console.log("data", data);
+          dispatch(setCartItems(data));
+        }
+      } catch (error) {
+        console.error("Error fetching cart items:", error);
+      }
+    };
+
+    console.log("called");
+
+    fetchCart();
+  }, [user]);
+
   return (
     <SafeAreaView style={{ paddingHorizontal: 15 }}>
       {/* Header */}
@@ -46,7 +76,8 @@ const Index = () => {
             <Entypo name="arrow-with-circle-down" size={18} color="black" />
           </Pressable>
         </View>
-        <View
+        <Pressable
+          onPress={() => router.push("/(main)/(tabs)/cart")}
           style={{
             width: 48,
             height: 48,
@@ -57,17 +88,49 @@ const Index = () => {
           }}
         >
           <Feather name="shopping-bag" size={24} color={colors.white} />
-        </View>
+          <View
+            style={{
+              width: 25,
+              height: 25,
+              backgroundColor: colors.primary,
+              borderRadius: 12,
+              position: "absolute",
+              top: -4,
+              right: 0,
+              left: 27,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ fontFamily: "Bold", color: colors.white }}>
+              {cartItems.length}
+            </Text>
+          </View>
+        </Pressable>
       </View>
       {/* <Text onPress={logout}>Logout</Text> */}
       <FlatList
         showsVerticalScrollIndicator={false}
         data={offers}
+        ListFooterComponent={() => (
+          <Button
+            title="Try!"
+            onPress={() => {
+              Sentry.captureException(new Error("First error"));
+            }}
+          />
+        )}
         contentContainerStyle={{ gap: 15, paddingBottom: 150 }}
         renderItem={({ item, index }) => {
           const isEven = index % 2 === 0;
           return (
-            <View
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: "/(main)/(tabs)/search",
+                  params: { item: item.route },
+                })
+              }
               style={{
                 backgroundColor: item.color,
                 width: "100%",
@@ -132,7 +195,7 @@ const Index = () => {
                   <Text style={styles.price}>$10.88</Text>
                 )}
               </View>
-            </View>
+            </TouchableOpacity>
           );
         }}
       />
